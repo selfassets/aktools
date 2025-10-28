@@ -1,0 +1,55 @@
+name: Build and Publish Multi-Arch Docker Image (Organization)
+
+on:
+  push:
+    branches: [ "oracle" ]        # 推送到 main 分支时触发
+    tags: [ "v*" ]              # 或打 tag 时触发
+  workflow_dispatch:             # 支持手动触发
+
+jobs:
+  build:
+    # 仅当满足任意条件时才运行：
+    # 1) 推送的是 tag（refs/tags/*）
+    # 2) 最近一次提交信息包含关键字 "release"
+    # 3) 手动触发 workflow_dispatch（保留手动触发能力）
+    if: ${{ startsWith(github.ref, 'refs/tags/') || contains(github.event.head_commit.message, 'release') || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      # 1. 检出代码
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      # 2. 登录 GitHub Container Registry
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_TOKEN }}
+
+      # 3. 设置 QEMU 支持不同架构（让 x86_64 构建 arm64 镜像）
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      # 4. 设置 Buildx 构建器
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # 5. 构建并推送多架构镜像
+      - name: Build and push multi-arch image
+        uses: docker/build-push-action@v6
+        with:
+          push: true
+#          platforms: linux/arm64
+          platforms: linux/amd64,linux/arm64   # 👈 支持双架构
+          tags: |
+            ghcr.io/selfassets/aktools:latest
+            ghcr.io/selfassets/aktools:${{ github.ref_name }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
