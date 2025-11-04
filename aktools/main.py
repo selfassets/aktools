@@ -22,6 +22,7 @@ from aktools.datasets import get_favicon_path, get_homepage_html
 from aktools.login import app_user_login
 from aktools.utils import get_latest_version
 from aktools.schema.version import VersionBase
+
 import functools
 import time
 import logging
