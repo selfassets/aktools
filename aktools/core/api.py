@@ -103,7 +103,7 @@ def root(
 
 
 @app_core.get(path="/public/{item_id}", description="公开接口", summary="该接口主要提供公开访问来获取数据")
-def root(request: Request, item_id: str):
+async def root(request: Request, item_id: str):
     """
     接收请求参数及接口名称并返回 JSON 数据
     此处由于 AKShare 的请求中是同步模式，所以这边在定义 root 函数中没有使用 asyncio 来定义，这样可以开启多线程访问

@@ -10,7 +10,7 @@ import sys
 # 添加 package 查找路径，该行必须在前面，否则不能导入相关的模块
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-import akshare
+
 import aktools
 import uvicorn
 from fastapi import FastAPI, Request
@@ -22,7 +22,40 @@ from aktools.datasets import get_favicon_path, get_homepage_html
 from login import app_user_login
 from aktools.utils import get_latest_version
 from schema.version import VersionBase
+import functools
+import time
+import logging
 
+def timed_lru_cache(seconds=60, maxsize=128):
+    logger = logging.getLogger("timed_lru_cache")
+
+    def decorator(func):
+        cache = functools.lru_cache(maxsize=maxsize)(func)
+        cache_expiration = {}
+
+        @functools.wraps(func)
+        def wrapped(*args, **kwargs):
+            now = time.time()
+            key = args + tuple(sorted(kwargs.items()))
+            expire = cache_expiration.get(key, 0)
+            if now >= expire:
+                logger.info(f"缓存失效: {func.__name__} args={args} kwargs={kwargs}")
+                cache.cache_clear()
+                cache_expiration[key] = now + seconds
+            else:
+                logger.info(f"缓存命中: {func.__name__} args={args} kwargs={kwargs}")
+            return cache(*args, **kwargs)
+        wrapped.cache_clear = cache.cache_clear
+        return wrapped
+    return decorator
+
+
+# 覆盖 functools.lru_cache
+import functools as _functools
+_functools.lru_cache = timed_lru_cache
+
+# 之后再导入akshare的包
+import akshare
 favicon_path = get_favicon_path(file="favicon.ico")
 html_path = get_homepage_html(file="homepage.html")
 
